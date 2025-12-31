@@ -7,9 +7,10 @@ def video_tab(service, user_box: gr.Textbox):
     with gr.Tab("Video"):
         gr.Markdown("## Interactive YouTube Lesson")
 
-        video_id = "V1"
-        youtube_video_id = "dQw4w9WgXcQ"  # ← replace with your own ID
-        markers = service.get_video_markers(video_id)  # [{'id','time','type',...}]
+        video_id = "f8ppddE4s4Y"
+        youtube_video_id = "f8ppddE4s4Y"  # ← REPLACE with your video ID
+        markers = service.get_video_markers(video_id)  # [{'id','time','type','prompt',...}]
+        markers_json = json.dumps(markers)
 
         # Hidden bridge components
         marker_event = gr.Textbox(label="Marker Event", visible=False)
@@ -60,7 +61,7 @@ def video_tab(service, user_box: gr.Textbox):
                         gr.update(visible=True), gr.update(value="**V1-M70:** Summarize in one sentence:"))
             else:
                 return (gr.update(visible=False), gr.update(value=""),
-                        gr.update(visible=False), gr.update(value=""))
+                        gr.update(visible(False)), gr.update(value=""))
         marker_event.change(fn=_open_marker, inputs=[marker_event], outputs=[mcq_panel, mcq_prompt, short_panel, short_prompt])
 
         # Save progress when time changes
@@ -91,113 +92,114 @@ def video_tab(service, user_box: gr.Textbox):
             return service.save_video_bookmark(user, video_id, t, note or "")
         bm_btn.click(fn=_save_bm, inputs=[user_box, video_time, bm_note], outputs=bm_msg)
 
-        # YouTube Player API bridge
-        markers_json = json.dumps(markers)
-        html = f"""
-                <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">
-                <div id="yt-player" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
-                </div>
+        # --- YouTube Player API bridge (placeholders replaced safely) ---
+        html = r"""
+<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">
+  <div id="yt-player" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+</div>
 
-                <script>
-                (function() {{
-                // Avoid duplicate script loads
-                const API_URL = "https://www.youtube.com/iframe_api";
-                if (![...document.scripts].some(s => s.src === API_URL)) {{
-                    const tag = document.createElement('script');
-                    tag.src = API_URL;
-                    document.head.appendChild(tag);
-                }}
+<script>
+(function() {
+  const API_URL = "https://www.youtube.com/iframe_api";
+  if (![...document.scripts].some(s => s.src === API_URL)) {
+    const tag = document.createElement('script');
+    tag.src = API_URL;
+    document.head.appendChild(tag);
+  }
 
-                const markers = {markers_json};
-                const done = new Set();
-                let player = null;
-                let lastSent = -1;
+  const markers = __MARKERS__;
+  const done = new Set();
+  let player = null;
+  let lastSent = -1;
 
-                const findInput = (label) => [...document.querySelectorAll('input')].find(el => el.getAttribute('aria-label') === label);
-                const markerEventBox = findInput('Marker Event');
-                const videoTimeBox = findInput('Video Time');
-                const videoDurationBox = findInput('Video Duration');
-                const resumeSignalBox = findInput('Resume Signal');
-                const resumeTimeBox = findInput('Resume Time');
+  const findInput = (label) => [...document.querySelectorAll('input')].find(el => el.getAttribute('aria-label') === label);
+  const markerEventBox = findInput('Marker Event');
+  const videoTimeBox = findInput('Video Time');
+  const videoDurationBox = findInput('Video Duration');
+  const resumeSignalBox = findInput('Resume Signal');
+  const resumeTimeBox = findInput('Resume Time');
 
-                const dispatchInput = (el, value) => {{
-                    if (!el) return;
-                    el.value = value;
-                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
-                }};
+  const dispatchInput = (el, value) => {
+    if (!el) return;
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  };
 
-                window.onYouTubeIframeAPIReady = function() {{
-                    try {{
-                    player = new YT.Player('yt-player', {{
-                        videoId: '{youtube_video_id}',
-                        playerVars: {{
-                        'playsinline': 1,
-                        'enablejsapi': 1,
-                        'origin': window.location.origin
-                        }},
-                        events: {{
-                        'onReady': onReady
-                        }}
-                    }});
-                    }} catch (e) {{
-                    console.error('YT init error:', e);
-                    }}
-                };
+  window.onYouTubeIframeAPIReady = function() {
+    try {
+      player = new YT.Player('yt-player', {
+        videoId: '__VIDEO_ID__',
+        playerVars: {
+          playsinline: 1,
+          enablejsapi: 1,
+          origin: window.location.origin
+        },
+        events: {
+          onReady: onReady
+        }
+      });
+    } catch (e) {
+      console.error('YT init error:', e);
+    }
+  };
 
-                function onReady() {{
-                    try {{
-                    const dur = player.getDuration() || 0;
-                    dispatchInput(videoDurationBox, String(dur));
-                    }} catch(e) {{}}
+  function onReady() {
+    try {
+      const dur = player.getDuration() || 0;
+      dispatchInput(videoDurationBox, String(dur));
+    } catch(e) {}
 
-                    // Resume when resumeTime changes
-                    if (resumeTimeBox) {{
-                    resumeTimeBox.addEventListener('input', () => {{
-                        const t = parseFloat(resumeTimeBox.value || '0');
-                        if (!isNaN(t) && player) {{
-                        player.seekTo(t, true);
-                        player.playVideo();
-                        }}
-                    }});
-                    }}
+    // Resume when resumeTime changes
+    if (resumeTimeBox) {
+      resumeTimeBox.addEventListener('input', () => {
+        const t = parseFloat(resumeTimeBox.value || '0');
+        if (!isNaN(t) && player) {
+          player.seekTo(t, true);
+          player.playVideo();
+        }
+      });
+    }
 
-                    // Resume after quiz submit
-                    if (resumeSignalBox) {{
-                    resumeSignalBox.addEventListener('input', () => {{
-                        const v = (resumeSignalBox.value || '').trim();
-                        if (v === 'resume' && player) {{
-                        player.playVideo();
-                        dispatchInput(resumeSignalBox, '');
-                        }}
-                    }});
-                    }}
+    // Resume after quiz submit
+    if (resumeSignalBox) {
+      resumeSignalBox.addEventListener('input', () => {
+        const v = (resumeSignalBox.value || '').trim();
+        if (v === 'resume' && player) {
+          player.playVideo();
+          dispatchInput(resumeSignalBox, '');
+        }
+      });
+    }
 
-                    // Poll current time for progress + markers
-                    setInterval(() => {{
-                    if (!player) return;
-                    let t = 0;
-                    try {{ t = player.getCurrentTime() || 0; }} catch(e) {{}}
+    // Poll current time for progress + markers
+    setInterval(() => {
+      if (!player) return;
+      let t = 0;
+      try { t = player.getCurrentTime() || 0; } catch(e) {}
 
-                    // Throttle progress every 5 sec
-                    const tInt = Math.floor(t);
-                    if (tInt % 5 === 0 && tInt !== lastSent) {{
-                        lastSent = tInt;
-                        dispatchInput(videoTimeBox, String(t));
-                    }}
+      // Throttle progress every 5 sec
+      const tInt = Math.floor(t);
+      if (tInt % 5 === 0 && tInt !== lastSent) {
+        lastSent = tInt;
+        dispatchInput(videoTimeBox, String(t));
+      }
 
-                    // Trigger markers
-                    for (const m of markers) {{
-                        if (t >= m.time && !done.has(m.id)) {{
-                        done.add(m.id);
-                        try {{ player.pauseVideo(); }} catch(e) {{}}
-                        dispatchInput(markerEventBox, m.id);
-                        break;
-                        }}
-                    }}
-                    }}, 500);
-                }
-                }})();
-                </script>
-                """
+      // Trigger markers
+      for (const m of markers) {
+        if (t >= m.time && !done.has(m.id)) {
+          done.add(m.id);
+          try { player.pauseVideo(); } catch(e) {}
+          dispatchInput(markerEventBox, m.id);
+          break;
+        }
+      }
+    }, 500);
+  }
+})();
+</script>
+"""
+        # Safe replacement without f-string brace conflicts
+        html = html.replace("__VIDEO_ID__", youtube_video_id).replace("__MARKERS__", markers_json)
         gr.HTML(html)
-        gr.Markdown("> Press **Play** if autoplay is blocked. If the player still doesn’t appear, disable ad‑blockers and check console errors (F12).")
+
+        gr.Markdown("> Press **Play** if autoplay is blocked. If the player still doesn’t appear, disable ad‑blockers and check DevTools Console (F12).")
