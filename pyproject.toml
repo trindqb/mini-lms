@@ -1,0 +1,11 @@
+[project]
+name = "mini-lms"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "firebase-admin>=6.3.0",
+    "gradio>=4.35.0",
+    "pandas>=2.2.2",
+]
